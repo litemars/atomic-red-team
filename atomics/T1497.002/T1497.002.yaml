@@ -1,0 +1,33 @@
+attack_technique: T1497.002
+display_name: "Virtualization/Sandbox Evasion: User Activity Based Checks"
+atomic_tests:
+- name: Gate execution on recent macOS user activity
+  auto_generated_guid: e37a2b8d-19f2-4b53-a6c4-60d8598df49a
+  description: |
+    Reads IOHIDSystem idle time and executes a marker payload only when input activity occurred within the configured threshold. Move the pointer or press a key immediately before running to take the active-user branch.
+  supported_platforms:
+  - macos
+  input_arguments:
+    max_idle_seconds:
+      description: Maximum idle time treated as active user behavior
+      type: integer
+      default: 300
+    marker_file:
+      description: Marker created when the active-user condition passes
+      type: path
+      default: /tmp/T1497.002-user-active
+  executor:
+    command: |
+      idle_ns=$(ioreg -c IOHIDSystem -d 4 | awk '/"HIDIdleTime"/ {print $NF; exit}')
+      test -n "$idle_ns"
+      idle_seconds=$((idle_ns / 1000000000))
+      echo "IOHIDSystem idle time: ${idle_seconds}s"
+      if [ "$idle_seconds" -le "#{max_idle_seconds}" ]; then
+        touch "#{marker_file}"
+        echo "Recent user activity detected; payload executed."
+      else
+        echo "No recent user activity; payload withheld."
+      fi
+    cleanup_command: |
+      rm -f "#{marker_file}"
+    name: sh

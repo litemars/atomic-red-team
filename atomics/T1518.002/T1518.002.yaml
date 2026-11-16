@@ -1,0 +1,20 @@
+attack_technique: T1518.002
+display_name: "Software Discovery: Backup Software Discovery"
+atomic_tests:
+- name: Discover Time Machine and third-party backup software on macOS
+  auto_generated_guid: e6d01332-d4bf-4647-932d-826c640ec241
+  description: |
+    Queries Time Machine configuration and uses Spotlight and launchd metadata to discover common backup products without changing backup state.
+  supported_platforms:
+  - macos
+  executor:
+    command: |
+      echo "== Time Machine destinations =="
+      tmutil destinationinfo 2>&1 || true
+      echo "== Time Machine status =="
+      tmutil status 2>&1 || true
+      echo "== Backup applications =="
+      mdfind 'kMDItemFSName == "*Backblaze*"cd || kMDItemFSName == "*Carbon Copy Cloner*"cd || kMDItemFSName == "*Acronis*"cd || kMDItemFSName == "*Arq*"cd' || true
+      echo "== Backup launch services =="
+      launchctl print system 2>/dev/null | grep -Ei 'backup|backblaze|carboncopy|acronis|arq' || true
+    name: sh

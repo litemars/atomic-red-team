@@ -1,0 +1,36 @@
+attack_technique: T1564.014
+display_name: "Hide Artifacts: Extended Attributes"
+atomic_tests:
+- name: Hide and execute a payload from a macOS extended attribute
+  auto_generated_guid: e1d30418-e5b0-49d6-978d-e7433f0519cc
+  description: |
+    Stores an encoded shell payload in a custom extended attribute, verifies that the carrier file hash remains unchanged, retrieves the hidden value, and executes it.
+  supported_platforms:
+  - macos
+  input_arguments:
+    carrier_file:
+      description: Carrier file whose extended attributes will contain the payload
+      type: path
+      default: /tmp/T1564.014-carrier
+    attribute_name:
+      description: Custom extended-attribute name
+      type: string
+      default: com.atomicredteam.payload
+    marker_file:
+      description: Marker created by the extracted payload
+      type: path
+      default: /tmp/T1564.014-executed
+  executor:
+    command: |
+      touch "#{carrier_file}"
+      original_hash=$(shasum -a 256 "#{carrier_file}" | awk '{print $1}')
+      encoded_payload=$(printf '%s' '/usr/bin/touch "#{marker_file}"' | base64 | tr -d '\n')
+      xattr -w "#{attribute_name}" "$encoded_payload" "#{carrier_file}"
+      current_hash=$(shasum -a 256 "#{carrier_file}" | awk '{print $1}')
+      test "$original_hash" = "$current_hash"
+      xattr -p "#{attribute_name}" "#{carrier_file}" | base64 -D | /bin/sh
+      test -f "#{marker_file}"
+    cleanup_command: |
+      xattr -d "#{attribute_name}" "#{carrier_file}" 2>/dev/null || true
+      rm -f "#{carrier_file}" "#{marker_file}"
+    name: sh
